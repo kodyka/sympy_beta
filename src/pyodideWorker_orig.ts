@@ -27,12 +27,33 @@ const config = { kernelName, kernelVersion, useDevSymPy }
 pyodide.registerJsModule('config', config)
 // Running Python code to download additional packages and set up the environment
   await pyodide.runPythonAsync(`
+    # Importing necessary modules and variables
+    from pathlib import Path
+    from config import kernelName, kernelVersion, useDevSymPy
     import micropip
+    from pyodide.http import pyfetch
+    
+    # Installing SymPy package based on the value of useDevSymPy variable
+    if useDevSymPy:
+        await micropip.install('/sympy-1.11.dev0-py3-none-any.whl')
+    else:
+        await micropip.install('sympy==1.11')
+    
+    # Downloading a zip file and saving it to a specific directory
+    words_res = await pyfetch('/words.zip')
+    path = Path('/home/pyodide/nltk_data/corpora')
+    path.mkdir(parents=True)
+    with open(path/'words.zip', 'wb') as f:
+        f.write(await words_res.bytes())
+    
     # Installing several packages using micropip
     await micropip.install([
-        'tzdata',
-        'django'
+        f'/{kernelName}-{kernelVersion}-py3-none-any.whl',
+        'cplot',
+        '/antlr4_python3_runtime-4.10-py3-none-any.whl'
     ])
+    
+    # Importing some functions from a module called api and defining a new function called eval_card
     from api import eval_input, eval_latex_input, eval_card as eval_card_inner, get_sympy_version
     def eval_card(card_name, expression, variable, parameters):
         return eval_card_inner(card_name, expression, variable, parameters.to_py())
